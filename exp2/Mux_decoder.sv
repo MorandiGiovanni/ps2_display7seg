@@ -1,7 +1,6 @@
 module mux_decoder (
     input  logic [2:0] contador,
 
-    // Entradas com scancodes PS/2 (8 bits)
     input  logic [7:0] AN_pos0,
     input  logic [7:0] AN_pos1,
     input  logic [7:0] AN_pos2,
@@ -11,7 +10,7 @@ module mux_decoder (
     input  logic [7:0] AN_pos6,
     input  logic [7:0] AN_pos7,
 
-    output logic [7:0] display // Saída dos segmentos {DP, CG, CF, CE, CD, CC, CB, CA}
+    output logic [7:0] display // Saída dos segmentos
 );
 
     logic [7:0] valor;
@@ -35,7 +34,7 @@ module mux_decoder (
     always_comb begin
         case (valor)
             //NÚMEROS
-            8'h0E: display = 8'b1100_0000; // '0'
+            8'h45: display = 8'b1100_0000; // '0'
             8'h16: display = 8'b1111_1001; // '1'
             8'h1E: display = 8'b1010_0100; // '2'
             8'h26: display = 8'b1011_0000; // '3'
@@ -74,7 +73,7 @@ module mux_decoder (
             8'h35: display = 8'b1001_0001; // 'Y'
             8'h1A: display = 8'b1010_0100; // 'Z'
 
-            default: display = 8'b1111_1111; // Apagado
+            default: display = 8'b1111_1111; // Apagado, reset
         endcase
     end
 
