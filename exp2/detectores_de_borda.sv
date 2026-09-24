@@ -16,14 +16,19 @@
 //   data_ready : sobe pra 1 quando o byte fecha, e fica em 1 ate
 //                o primeiro bit do PROXIMO byte comecar a chegar
 //                (nao ha clock nesse trecho pra "descer" antes disso)
-//   novo_dado   : scan code completo (8 bits), valido junto com
+//   data_out   : scan code completo (8 bits), valido junto com
 //                a subida de data_ready
 //
 // IMPORTANTE: como esse bloco nao tem clk do sistema, data_ready e
-// novo_dado estao no dominio assincrono do ps2_clk. Quem for usar
+// data_out estao no dominio assincrono do ps2_clk. Quem for usar
 // isso no Shift Register precisa sincronizar com o clk do sistema
 // (2-3 flip-flops) e detectar a BORDA DE SUBIDA de data_ready ali,
 // antes de disparar o deslocamento dos displays.
+//
+// FILTRO DE BREAK CODE: quando o byte completo eh 0xF0 (prefixo que
+// o PS2 manda ao SOLTAR uma tecla, antes de repetir o scan code),
+// data_ready NAO sobe. Assim esse byte nunca chega no Shift Register
+// e nao aparece duplicado/errado no display.
 // ============================================================
 
 module detector_borda (
@@ -32,7 +37,7 @@ module detector_borda (
     input  logic ps2_data,     // dado bruto do PS2
 
     output logic       data_ready, // sobe quando o byte fecha
-    output logic [7:0] novo_dado    // scan code completo
+    output logic [7:0] data_out    // scan code completo
 );
 
     logic [7:0] byte_acc; // vai juntando os bits recebidos
@@ -44,15 +49,22 @@ module detector_borda (
             byte_acc   <= 8'd0;
             bit_cnt    <= 3'd0;
             data_ready <= 1'b0;
-            novo_dado   <= 8'd0;
+            data_out   <= 8'd0;
         end else begin
             // entra 1 bit por vez, LSB primeiro (padrao PS2)
             byte_acc <= {ps2_data, byte_acc[7:1]};
 
             if (bit_cnt == 3'd7) begin
                 // esse era o ultimo bit -> byte completo
-                novo_dado   <= {ps2_data, byte_acc[7:1]};
-                data_ready <= 1'b1;
+                data_out <= {ps2_data, byte_acc[7:1]};
+
+                // 0xF0 eh o "break code" do PS2: o teclado manda esse
+                // byte antes de repetir o scan code quando voce SOLTA
+                // uma tecla. Desconsideramos ele aqui -- nao levanta
+                // data_ready pra ele, entao ele nunca chega no Shift
+                // Register (o scan code que vem logo depois do F0
+                // continua passando normal)
+                data_ready <= ({ps2_data, byte_acc[7:1]} != 8'hF0);
                 bit_cnt    <= 3'd0;
             end else begin
                 data_ready <= 1'b0; // so fica 1 durante o "descanso" entre bytes
